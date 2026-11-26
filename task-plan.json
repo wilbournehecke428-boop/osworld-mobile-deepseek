@@ -1,0 +1,106 @@
+{
+  "tasks": [
+    {
+      "index": 1,
+      "label": "Calc 提取不重复姓名",
+      "task": "abed40dc-063f-4598-8ba5-9fe749c0615d",
+      "domain": "libreoffice_calc",
+      "human_reference_steps": 13,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_calc/abed40dc-063f-4598-8ba5-9fe749c0615d.json",
+      "instruction": "Check the names in column \"Names with duplicates\" and put the unique ones in column \"Unique Names\". Keep the original order of the first occurrences. Finish the work and don't touch irrelevant regions, even if they are blank."
+    },
+    {
+      "index": 2,
+      "label": "Impress 修改幻灯片表格首行",
+      "task": "5cfb9197-e72b-454b-900e-c06b0c802b40",
+      "domain": "libreoffice_impress",
+      "human_reference_steps": 13,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_impress/5cfb9197-e72b-454b-900e-c06b0c802b40.json",
+      "instruction": "Change the first row of table to \"T1\",\"T2\",\"T3\",\"T4\" on slide 4."
+    },
+    {
+      "index": 3,
+      "label": "跨应用 将 GIMP 图片插入 Writer",
+      "task": "227d2f97-562b-4ccb-ae47-a5ec9e142fbb",
+      "domain": "multi_apps",
+      "human_reference_steps": 13,
+      "task_file": "OSWorld/evaluation_examples/examples/multi_apps/227d2f97-562b-4ccb-ae47-a5ec9e142fbb.json",
+      "instruction": "I've stored my .xcf file on the Desktop. Can you assist me in copying the image and pasting it into a LibreOffice Writer document? Save the document as 'image.docx' on the Desktop, please."
+    },
+    {
+      "index": 4,
+      "label": "Calc 按发票号计数做透视表",
+      "task": "1954cced-e748-45c4-9c26-9855b97fbc5e",
+      "domain": "libreoffice_calc",
+      "human_reference_steps": 14,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_calc/1954cced-e748-45c4-9c26-9855b97fbc5e.json",
+      "instruction": "Create a Pivot Table in a new sheet (Sheet2) to count how many times each \"Invoice No.\" appears."
+    },
+    {
+      "index": 5,
+      "label": "跨应用 提取视频帧作幻灯片背景",
+      "task": "47f7c0ce-a5fb-4100-a5e6-65cd0e7429e5",
+      "domain": "multi_apps",
+      "human_reference_steps": 16,
+      "task_file": "OSWorld/evaluation_examples/examples/multi_apps/47f7c0ce-a5fb-4100-a5e6-65cd0e7429e5.json",
+      "instruction": "The landscape at 00:08 in this video is so beautiful. Please extract this frame and set it as the background of the second page of the opened slides."
+    },
+    {
+      "index": 6,
+      "label": "Impress 调整三页图片高度",
+      "task": "7ae48c60-f143-4119-b659-15b8f485eb9a",
+      "domain": "libreoffice_impress",
+      "human_reference_steps": 17,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_impress/7ae48c60-f143-4119-b659-15b8f485eb9a.json",
+      "instruction": "Change picture's height to 20, 30, 25cm on slide 3, 4, 6 respectively."
+    },
+    {
+      "index": 7,
+      "label": "Calc 转换百万和十亿单位",
+      "task": "21df9241-f8d7-4509-b7f1-37e501a823f7",
+      "domain": "libreoffice_calc",
+      "human_reference_steps": 17,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_calc/21df9241-f8d7-4509-b7f1-37e501a823f7.json",
+      "instruction": "Change the representation of column \"Parameter\" to show in Millions (M) in Column B and Billions (B) in Column C. The numbers should be rounded to one decimal place, and half should be rounded up. Then remember to place a white space between the digits and the unit."
+    },
+    {
+      "index": 8,
+      "label": "Writer 按首字母为单词表着色",
+      "task": "8472fece-c7dd-4241-8d65-9b3cd1a0b568",
+      "domain": "libreoffice_writer",
+      "human_reference_steps": 18,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_writer/8472fece-c7dd-4241-8d65-9b3cd1a0b568.json",
+      "instruction": "I am writing a word list for a dyslexic kid. To ease things for him, I want to use red for words start with vowels and blue for those start with non-vowels. Can you do this for me? I'm doing it manually, and it is a pain."
+    },
+    {
+      "index": 9,
+      "label": "跨应用 导出 Impress 演讲者备注",
+      "task": "51f5801c-18b3-4f25-b0c3-02f85507a078",
+      "domain": "multi_apps",
+      "human_reference_steps": 19,
+      "task_file": "OSWorld/evaluation_examples/examples/multi_apps/51f5801c-18b3-4f25-b0c3-02f85507a078.json",
+      "instruction": "I've been working on this presentation in LibreOffice Impress and I've added a bunch of speaker notes for my upcoming talk. I'd like to have those notes handy in a separate document when I rehearse. Could you assist me in extracting all the presenter notes from the Impress file and saving them as a Word document? Just keep the text of the notes, do not add any formatting or page number information. I'd like the file to be named 'notes.docx' and placed on my Desktop for easy access."
+    },
+    {
+      "index": 10,
+      "label": "Impress 调整图片和文本框",
+      "task": "e4ef0baf-4b52-4590-a47e-d4d464cca2d7",
+      "domain": "libreoffice_impress",
+      "human_reference_steps": 20,
+      "task_file": "OSWorld/evaluation_examples/examples/libreoffice_impress/e4ef0baf-4b52-4590-a47e-d4d464cca2d7.json",
+      "instruction": "The height of picture should be 20cm on slide 3 while the font size of all textboxes should be 40pt on slide 6."
+    }
+  ],
+  "step_budget": 30,
+  "snapshot": "osworld-baseline-network-ready",
+  "selection": "Purposeful long-task pilot. Local OSWorld no-Google-Drive list, feasible, low environment-change risk, no proxy or fixed IP. Human reference length 13–20.",
+  "settings": {
+    "image_history": 0,
+    "action_history": "natural-language prior actions",
+    "deepseek_policy": "mobile-history",
+    "deepseek_reasoning": "none",
+    "max_output_tokens": 256,
+    "done_counts_as_operation": false
+  },
+  "order": "Pair by task. Odd tasks Mobile first, even tasks DeepSeek first."
+}

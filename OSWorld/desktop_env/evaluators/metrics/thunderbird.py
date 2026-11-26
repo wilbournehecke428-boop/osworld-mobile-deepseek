@@ -1,0 +1,246 @@
+import json
+import logging
+import re
+from typing import List, Pattern, Dict, Match
+from typing import Union, Any, TypeVar, Callable
+
+from .utils import _match_record
+from .utils import _match_value_to_rule as _match_pref
+
+logger = logging.getLogger("desktopenv.metric.thunderbird")
+
+V = TypeVar("Value")
+
+_pref_pattern: Pattern[str] = re.compile(r'^user_pref\("(?P<key>(?:[^"]|\\")+)\", (?P<val>.+)\);$');
+
+
+def check_thunderbird_prefs(result: str, rule: Dict[str, Dict[str, Dict[str, Any]]]):
+    """
+    Args:
+        result (str): path to result file
+        rule (Dict[str, Dict[str, Dict[str, Any]]]): dict like
+          {
+            "expect": {
+                str: {
+                    "method": str
+                    "ref": something
+                }
+            }
+            "unexpect": {
+                str: {
+                    "method": str
+                    "ref": something
+                }
+            }
+          }
+
+    Returns:
+        float
+    """
+
+    if result is None:
+        return 0.
+
+    expect_rules = rule.get("expect", {})
+    unexpect_rules = rule.get("unexpect", {})
+
+    expect_metrics = {k: False for k in expect_rules}
+    unexpect_metric = True
+    with open(result) as f:
+        for l in f:
+            match_: Match[str] = _pref_pattern.match(l.strip())
+            if match_ is None:
+                continue
+
+            key: str = match_.group("key")
+            # value: str = match_.group("val")
+            # if value in {"true", "false"}:
+            # value = value.title()
+            # value: V = eval(value)
+            value = json.loads(match_.group("val"))
+            if key in expect_rules:
+                logger.debug("K: %s, V: %s", key, repr(value))
+                expect_metrics[key] = _match_pref(value, expect_rules[key])
+            elif key in unexpect_rules:
+                unexpect_metric = unexpect_metric and not _match_pref(value, unexpect_rules[key])
+
+    return float(all(expect_metrics.values()) and unexpect_metric)
+
+
+_value_processor: Callable[[str], str] = lambda val: val.replace("\\\"", "\"").replace("\\\\", "\\")
+# _condition_pattern: Pattern[str] = re.compile(r'(?P<type>AND|OR) \((?P<key>[\w ]+),(?P<rel>[\w ' + '\'' + r']+),(?:"(?P<val2>(?:[^"]|\")+)"|(?P<val1>[^)]+))\)')
+_condition_pattern: Pattern[str] = re.compile(
+    r'\b(?:AND|OR) \((?:[\w ]+),(?:[\w ' + '\'' + r']+),(?:"(?:(?:[^"]|\")+)"|(?:[^)]+))\)|\bALL\b')
+
+
+def check_thunderbird_filter(result: str, rules: Dict[str, List[Dict[str, str]]]) -> float:
+    """
+    Args:
+        result (str): path to filter def file
+        rules (Dict[str, List[Dict[str, str]]]): dict like
+          {
+            "expect": [{key: value}]
+            "unexpect": [{key: value}]
+          }
+
+    Returns:
+        float
+    """
+
+    if result is None:
+        return 0.
+
+    # read filter def file
+    # a filter:
+    # {
+    #   "name": "Name",
+    #   "enabled": "yes" | "no",
+    #   "type": "17",
+    #   "action": "Move to folder" | ...,
+    #   "actionValue": ...,
+    #   "condition": [...]
+    # }
+    filters: List[Dict[str, Union[str, List[str]]]] = []
+    with open(result) as f:
+        for l in f:
+            if l.startswith("name="):
+                filter_: Dict[str, Union[str, List[str]]] = {}
+                filter_["name"] = _value_processor(l[6:-2])
+            elif l.startswith("enabled="):
+                filter_["enabled"] = _value_processor(l[9:-2])
+            elif l.startswith("type="):
+                filter_["type"] = _value_processor(l[6:-2])
+            elif l.startswith("action="):
+                filter_["action"] = _value_processor(l[8:-2])
+            elif l.startswith("actionValue="):
+                filter_["actionValue"] = _value_processor(l[13:-2])
+            elif l.startswith("condition="):
+                condition_str: str = _value_processor(l[11:-2])
+                logger.debug("FILTER CONDITION: %s", condition_str)
+
+                conditions: List[str] = \
+                    _condition_pattern.findall(condition_str)
+                logger.debug("FILTER CONDITIONS: %s", repr(conditions))
+
+                filter_["condition"] = conditions
+                logger.debug("FILTER %s", repr(filter_))
+                filters.append(filter_)
+
+    expect_metrics = [False] * len(rules.get("expect", []))
+    unexpect_metric = True
+    for flt in filters:
+        for i, r in enumerate(rules.get("expect", [])):
+            expect_metrics[i] = expect_metrics[i] or _match_record(r, flt)
+        unexpect_metric = unexpect_metric and not any(_match_record(r, flt) for r in rules.get("unexpect", []))
+    return float(all(expect_metrics) and unexpect_metric)
+
+
+def check_thunderbird_folder(result: Union[str, List[str]], reference: Union[str, List[str]], **kwargs) -> float:
+    """Compare EML files or Thunderbird mbox folders, including every supplied file.
+
+    ``ignore_status`` and ``ignore_keys`` ignore only the corresponding Mozilla
+    headers (both default False). ``remove_deleted`` and ``remove_duplicate``
+    default True, preserving the existing folder-comparison options.
+    """
+    def read_messages(path):
+        with open(path, 'rb') as source:
+            data = source.read().replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+        marker = b'From' if data.startswith(b'From - ') else b'FROM' if data.startswith(b'FROM - ') else None
+        # Envelope dates are storage metadata, not message contents. Restrict
+        # splitting to mbox files so EML body text cannot become another mail.
+        chunks = re.split(rb'(?m)^' + marker + rb' - [^\n]*(?:\n|$)', data) if marker else [data]
+        messages = []
+        for chunk in chunks:
+            if not chunk.strip():
+                continue
+            headers, separator, body = chunk.partition(b'\n\n')
+            status = re.search(rb'(?im)^X-Mozilla-Status:[ \t]*([0-9a-f]{4})[ \t]*$', headers)
+            if kwargs.get('remove_deleted', True) and status and int(status[1], 16) & 0x0008:
+                continue
+            ignored = []
+            if kwargs.get('ignore_status', False):
+                ignored.append(b'Status2?')
+            if kwargs.get('ignore_keys', False):
+                ignored.append(b'Keys')
+            if ignored:
+                pattern = rb'(?im)^X-Mozilla-(?:' + b'|'.join(ignored) + rb'):[^\n]*(?:\n[ \t][^\n]*)*(?:\n|$)'
+                headers = re.sub(pattern, b'', headers).rstrip(b'\n')
+            messages.append((headers + separator + body).strip())
+        if kwargs.get('remove_duplicate', True):
+            messages = set(messages)
+        # A truly empty folder is equivalent to one containing only expunged
+        # messages. Nonempty EML and mbox containers are not interchangeable.
+        kind = (marker or b'eml') if messages else b'empty'
+        return kind, sorted(messages)
+
+    results = result if isinstance(result, list) else [result]
+    references = reference if isinstance(reference, list) else [reference]
+    if not references or len(results) != len(references):
+        return 0.0
+    for pred, gold in zip(results, references):
+        if pred is None:
+            return 0.0
+        if read_messages(pred) != read_messages(gold):
+            return 0.0
+    return 1.0
+
+
+def check_thunderbird_smtp_only(result: str, rule: Dict[str, Any]) -> float:
+    """Check an active sender's account -> identity -> SMTP linkage.
+
+    Thunderbird 115's cleared-incoming flow retains an IMAP placeholder.
+    Accept that and localhost dummy accounts, but not a remote incoming host.
+    This checks configuration, not delivery or possession of SMTP credentials.
+    """
+    if result is None:
+        return 0.0
+    prefs = {}
+    with open(result) as source:
+        for line in source:
+            match = _pref_pattern.match(line.strip())
+            if match:
+                try:
+                    prefs[match.group('key')] = json.loads(match.group('val'))
+                except json.JSONDecodeError:
+                    return 0.0
+
+    def ids(key):
+        value = prefs.get(key, '')
+        return [item.strip() for item in value.split(',') if item.strip()] if isinstance(value, str) else []
+
+    email = rule['email']
+    smtp_ids = ids('mail.smtpservers')
+    valid_sender = False
+    for account in ids('mail.accountmanager.accounts'):
+        prefix = f'mail.account.{account}.'
+        identities = [identity for identity in ids(prefix + 'identities')
+                      if prefs.get(f'mail.identity.{identity}.useremail') == email]
+        if not identities:
+            continue
+        server = prefs.get(prefix + 'server')
+        if not isinstance(server, str) or not server:
+            return 0.0
+        incoming = f'mail.server.{server}.'
+        server_type = prefs.get(incoming + 'type')
+        hostname = prefs.get(incoming + 'hostname')
+        if not (server_type == 'none' or (
+                server_type in ('imap', 'pop3') and hostname in ('.outlook.com', 'localhost'))):
+            return 0.0
+        for identity in identities:
+            identity_prefix = f'mail.identity.{identity}.'
+            if prefs.get(identity_prefix + 'useremail') != email:
+                continue
+            smtp = prefs.get(identity_prefix + 'smtpServer') or prefs.get('mail.smtp.defaultserver')
+            if smtp not in smtp_ids:
+                continue
+            smtp_prefix = f'mail.smtpserver.{smtp}.'
+            if (prefs.get(smtp_prefix + 'hostname') == rule['smtp_host']
+                    and prefs.get(smtp_prefix + 'username') == email
+                    and type(prefs.get(smtp_prefix + 'port')) is int
+                    and prefs[smtp_prefix + 'port'] == 587
+                    and type(prefs.get(smtp_prefix + 'try_ssl')) is int
+                    and prefs[smtp_prefix + 'try_ssl'] == 2
+                    and type(prefs.get(smtp_prefix + 'authMethod')) is int
+                    and prefs[smtp_prefix + 'authMethod'] in (3, 10)):
+                valid_sender = True
+    return float(valid_sender)
